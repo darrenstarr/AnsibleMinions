@@ -1,0 +1,134 @@
+---
+- name: Show the host variables for each member of the group lxdcontainers
+  ansible.builtin.debug:
+    msg: "Host: {{ lxd_guest }}\n IPv4 addresses: {{ lxdcontainer_addresses[lxd_guest].ipv4_addresses }}"
+  with_items: "{{ lxdcontainer_addresses.keys() }}"
+  loop_control:
+    loop_var: lxd_guest
+
+# - name: Show rendered version of the template test.j2 for each lxd_guest
+#   ansible.builtin.template:
+#     src: test.j2
+#     dest: /home/darren/deploy/tmp/test_{{ item }}.txt
+#     mode: '0644'
+#   with_items: "{{ groups['lxdcontainers'] }}"
+
+# - name: Show rendered version of the template container.profile.j2 for each lxd_guest
+#   ansible.builtin.template:
+#     src: container.profile.j2
+#     dest: /home/darren/deploy/tmp/profile_{{ item }}.txt
+#     mode: '0644'
+#   vars:
+#     lxd_guest: "{{ item }}"
+#   with_items: "{{ groups['lxdcontainers'] }}"
+
+- name: Make a list of the containers that are currently present
+  ansible.builtin.command: lxc list -c n --format csv
+  register: lxd_list
+  changed_when: false
+
+- name: Remove any containers from the list that are not in the inventory
+  ansible.builtin.set_fact:
+    lxd_list: "{{ lxd_list.stdout_lines | difference(groups['lxdcontainers']) }}"
+
+- name: Stop the containers in the list
+  ansible.builtin.command: lxc stop {{ item }}
+  with_items: "{{ lxd_list }}"
+  when: lxd_list is defined and lxd_list | length > 0
+
+- name: Remove the containers in the list
+  ansible.builtin.command: lxc delete {{ item }}
+  with_items: "{{ lxd_list }}"
+  when: lxd_list is defined and lxd_list | length > 0
+
+- name: Make a list of the profiles that are currently present
+  ansible.builtin.command: lxc profile list --format csv
+  register: lxd_profile_list
+  changed_when: false
+
+- name: Extract profile names from lxc profile list output
+  ansible.builtin.set_fact:
+    lxd_profile_names: "{{ lxd_profile_list.stdout_lines | map('split', ',') | map('first') | list }}"
+
+- name: Remove any profiles from the list that are not in the inventory
+  ansible.builtin.set_fact:
+    lxd_profile_list: "{{ lxd_profile_names | select('in', groups['lxdcontainers']) | list }}"
+
+- name: Debug the list of profiles
+  ansible.builtin.debug:
+    msg: "LXD profile list: {{ lxd_profile_list }}"
+
+- name: Remove the profiles that are in the list
+  community.general.lxd_profile:
+    name: "{{ item }}"
+    state: absent
+  with_items: "{{ lxd_profile_list }}"
+  when: lxd_profile_list is defined and lxd_profile_list | length > 0
+
+- name: Create LXD profile for each guest
+  community.general.lxd_profile:
+    name: "{{ item }}"
+    state: present
+    config:
+      boot.autostart: "true"
+      linux.kernel_modules: ip_vs,ip_vs_rr,ip_vs_wrr,ip_vs_sh,ip_tables,ip6_tables,netlink_diag,nf_nat,overlay,br_netfilter
+      raw.lxc: |
+        lxc.apparmor.profile=unconfined
+        lxc.mount.auto=proc:rw sys:rw cgroup:rw
+        lxc.cgroup.devices.allow=a
+        lxc.cap.drop=
+      limits.memory: 4GB
+      limits.cpu: "2"
+      limits.memory.swap: false
+      limits.memory.enforce: soft
+      security.nesting: "true"
+      security.privileged: "true"
+      cloud-init.user-data: |
+        #cloud-config
+        timezone: Europe/Oslo
+        write_files:
+        package_upgrade: true
+        packages:
+          - remove: tpm-udev
+        users:
+          - name: darren
+            gecos: Network/System administrator
+            sudo: ALL=(ALL) NOPASSWD:ALL
+            lock_passwd: true
+            shell: /bin/bash
+            ssh_import_id:
+              - gh:darrenstarr
+        runcmd:
+          - systemctl disable systemd-rfkill.socket
+          - systemctl mask systemd-rfkill.socket
+        power_state:
+          mode: reboot
+      user.network-config: |
+        #cloud-config
+        version: 2
+        ethernets:
+            eth0:
+              dhcp4: false
+  with_items: "{{ groups['lxdcontainers'] }}"
+
+# - name: Create LXD profile for guest
+#   template:
+#     src: container.profile.j2
+#     dest: /etc/lxd/profiles/{{ lxd_guest }}.profile
+
+# - name: Deploy Ubuntu 24.04 for each LXD guest
+#   lxd_container:
+#     name: "{{ item }}"
+#     state: started
+#     source:
+#       type: image
+#       mode: pull
+#       server: https://cloud-images.ubuntu.com/releases
+#       alias: ubuntu/24.04
+#     profiles:
+#       - "{{ item }}"
+#   with_items: "{{ groups['lxchosts'] }}"
+
+# - name: Set fact for routed networks
+#   set_fact:
+#     routed_networks: "{{ hostvars[inventory_hostname].routed_networks | default(routed_networks) }}"

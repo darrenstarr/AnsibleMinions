@@ -1,0 +1,87 @@
+config:
+  boot.autostart: "true"
+  linux.kernel_modules: ip_vs,ip_vs_rr,ip_vs_wrr,ip_vs_sh,ip_tables,ip6_tables,netlink_diag,nf_nat,overlay,br_netfilter
+  raw.lxc: |
+    lxc.apparmor.profile=unconfined
+    lxc.mount.auto=proc:rw sys:rw cgroup:rw
+    lxc.cgroup.devices.allow=a
+    lxc.cap.drop=
+  limits.memory: 4GB
+  limits.cpu: 2
+  limits.memory.swap: false
+  limits.memory.enforce: soft  
+  security.nesting: "true"
+  security.privileged: "true"
+  cloud-init.user-data: |
+    #cloud-config
+    timezone: Europe/Oslo
+    write_files:
+    package_upgrade: true
+    packages:
+      - remove: tpm-udev
+    users:
+      - name: darren
+        gecos: Network/System administrator
+        sudo: ALL=(ALL) NOPASSWD:ALL
+        lock_passwd: true
+        shell: /bin/bash
+        ssh_import_id:
+          - gh:darrenstarr
+    runcmd:
+      - systemctl disable systemd-rfkill.socket
+      - systemctl mask systemd-rfkill.socket
+    power_state:
+      mode: reboot      
+  user.network-config: |
+    #cloud-config
+    version: 2
+    ethernets:
+        eth0:
+          dhcp4: false
+          addresses:
+{% for addr in lxdcontainer_addresses[lxd_guest].ipv4_addresses + lxdcontainer_addresses[lxd_guest].ipv6_addresses %}
+            - {{ addr }}
+{% endfor %}
+          routes:
+            - to: default
+              via: {{ routed_networks.default_gateways.ipv4 }}
+            - to: default
+              via: {{ routed_networks.default_gateways.ipv6 }}
+          nameservers:
+            search:
+{% for domain in search_domains %}
+              - {{ domain }}
+{% endfor %}
+            addresses:
+{% for ns in dns_servers %}
+              - {{ ns }}
+{% endfor %}
+
+description: ""
+devices:
+  root:
+    path: /
+    pool: default
+    size: 10GB
+    type: disk
+  aadisable:
+    path: /sys/module/nf_conntrack/parameters/hashsize
+    source: /sys/module/nf_conntrack/parameters/hashsize
+    type: disk
+  aadisable2:
+    path: /dev/kmsg
+    source: /dev/kmsg
+    type: unix-char
+  aadisable3:
+    path: /sys/fs/bpf
+    source: /sys/fs/bpf
+    type: disk
+  aadisable4:
+    path: /proc/sys/net/netfilter/nf_conntrack_max
+    source: /proc/sys/net/netfilter/nf_conntrack_max
+    type: disk
+  eth0:
+    name: eth0
+    nictype: bridged
+    parent: br0
+    type: nic

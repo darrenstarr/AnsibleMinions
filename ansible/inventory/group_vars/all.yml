@@ -1,0 +1,44 @@
+lxdcontainer_addresses:
+  bob.minions.local:
+    ipv4_addresses:
+      - 10.200.1.51/24
+    ipv6_addresses:
+      - fe80::1/64
+      - fc00::1/64
+      - 2001:db8::1/64
+  kevin.minions.local:
+    ipv4_addresses:
+      - 10.200.1.52/24
+    ipv6_addresses:
+      - fe80::2/64
+      - fc00::2/64
+      - 2001:db8::2/64
+  stuart.minions.local:
+    ipv4_addresses:
+      - 10.200.1.53/24
+    ipv6_addresses:
+      - fe80::3/64
+      - fc00::3/64
+      - 2001:db8::3/64
+  gru.minions.local:
+    ipv4_addresses:
+      - 10.200.1.54/24
+    ipv6_addresses:
+      - fe80::4/64
+      - fc00::4/64
+      - 2001:db8::4/64
+  jumpy.minions.local:
+    ipv4_addresses:
+      - 10.200.1.55/24
+    ipv6_addresses:
+      - fe80::5/64
+      - fc00::5/64
+      - 2001:db8::5/64
+routed_networks:
+  default_gateways:
+    ipv4: 10.200.1.1
+    ipv6: fc00::1
+dns_servers:
+  - fc00::4
+search_domains:
+  - minions.local

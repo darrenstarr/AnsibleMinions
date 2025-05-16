@@ -1,0 +1,6 @@
+routed_networks:
+  default_gateways:
+    ipv4: 10.200.1.1
+    ipv6: fc00::1
+  dns_servers:
+    - fc00::4

@@ -1,0 +1,6 @@
+{
+    "ansible.python.interpreterPath": "/usr/bin/python3",
+    "ansible.ansible.path": "~/.ansible-env/bin/ansible",
+    "ansible.ansible.reuseTerminal": true,
+    "ansible.validation.lint.path": "~/.ansible-env/bin/ansible-lint"
+}

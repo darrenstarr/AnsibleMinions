@@ -1,0 +1,5 @@
+- name: Deploy LXD Cluster
+  hosts: lxdhosts
+  become: true
+  roles:
+    - role: deploycluster
