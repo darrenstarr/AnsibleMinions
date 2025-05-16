@@ -65,56 +65,12 @@
   with_items: "{{ lxd_profile_list }}"
   when: lxd_profile_list is defined and lxd_profile_list | length > 0
 
-- name: Create LXD profile for each guest
-  community.general.lxd_profile:
-    name: "{{ item }}"
-    state: present
-    config:
-      boot.autostart: "true"
-      linux.kernel_modules: ip_vs,ip_vs_rr,ip_vs_wrr,ip_vs_sh,ip_tables,ip6_tables,netlink_diag,nf_nat,overlay,br_netfilter
-      raw.lxc: |
-        lxc.apparmor.profile=unconfined
-        lxc.mount.auto=proc:rw sys:rw cgroup:rw
-        lxc.cgroup.devices.allow=a
-        lxc.cap.drop=
-      limits.memory: 4GB
-      limits.cpu: "2"
-      limits.memory.swap: false
-      limits.memory.enforce: soft
-      security.nesting: "true"
-      security.privileged: "true"
-      cloud-init.user-data: |
-        #cloud-config
-        timezone: Europe/Oslo
-        write_files:
-        package_upgrade: true
-        packages:
-          - remove: tpm-udev
-        users:
-          - name: darren
-            gecos: Network/System administrator
-            sudo: ALL=(ALL) NOPASSWD:ALL
-            lock_passwd: true
-            shell: /bin/bash
-            ssh_import_id:
-              - gh:darrenstarr
-        runcmd:
-          - systemctl disable systemd-rfkill.socket
-          - systemctl mask systemd-rfkill.socket
-        power_state:
-          mode: reboot
-      user.network-config: |
-        #cloud-config
-        version: 2
-        ethernets:
-            eth0:
-              dhcp4: false
-  with_items: "{{ groups['lxdcontainers'] }}"
-
-# - name: Create LXD profile for guest
-#   template:
-#     src: container.profile.j2
-#     dest: /etc/lxd/profiles/{{ lxd_guest }}.profile
+- name: Create LXD profile for guest
+  template:
+    src: container.profile.j2
+    dest: /tmp/{{ item }}.profile
+  with_items: "{{ lxd_profile_list }}"
+  
 
 # - name: Deploy Ubuntu 24.04 for each LXD guest
 #   lxd_container:
